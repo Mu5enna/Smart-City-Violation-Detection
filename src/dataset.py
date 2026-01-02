@@ -59,7 +59,7 @@ class XDViolenceDataset(Dataset):
             }
             id_sets.append(flow_ids)
 
-        return set.intersection(*id_sets)
+        return sorted(set.intersection(*id_sets))
 
     def _load_feature(self, path):
         feat = np.load(path)
@@ -68,11 +68,11 @@ class XDViolenceDataset(Dataset):
         if T >= self.max_timesteps:
             feat = feat[:self.max_timesteps]
         else:
-            #pad = np.zeros((self.max_timesteps - T, D)) #pad ve mask ile deneme yap
-            #feat = np.concatenate([feat, pad], axis=0)
-            mask = np.zeros(self.max_timesteps)
-            mask[:min(T, self.max_timesteps)] = 1
-            feat = np.concatenate([feat, mask], axis=0)
+            pad = np.zeros((self.max_timesteps - T, D)) #pad ve mask ile deneme yap
+            feat = np.concatenate([feat, pad], axis=0)
+            #mask = np.zeros(self.max_timesteps)
+            #mask[:min(T, self.max_timesteps)] = 1
+            #feat = np.concatenate([feat, mask], axis=0)
 
         return torch.tensor(feat, dtype=torch.float32)
 
@@ -104,9 +104,13 @@ class XDViolenceDataset(Dataset):
 
         label = self._parse_label(video_id)
 
-        return {
-            "audio": audio_feat,
-            "rgb": rgb_feat,
-            "flow": flow_feat,
-            "label": label
-        }
+        # Only include modalities that are actually used (not None), batch doesn't handle None
+        result = {"label": label}
+        if self.is_audio and audio_feat is not None:
+            result["audio"] = audio_feat
+        if self.is_visual and rgb_feat is not None:
+            result["rgb"] = rgb_feat
+        if self.is_motion and flow_feat is not None:
+            result["flow"] = flow_feat
+
+        return result

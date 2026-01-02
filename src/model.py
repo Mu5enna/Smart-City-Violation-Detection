@@ -96,14 +96,16 @@ class MultiAgentViolanceModel(nn.Module):
 
         super().__init__()
         
+        self.is_audio = is_audio
         if is_audio:
-            self.is_audio = is_audio
             self.AudioAgent = AudioAgent()
+
+        self.is_visual = is_visual
         if is_visual:
-            self.is_visual = is_visual
             self.VisualAgent = VisualAgent()
+            
+        self.is_motion = is_motion
         if is_motion:   
-            self.is_motion = is_motion
             self.MotionAgent = MotionAgent()
 
         self.DecisionAgent = DecisionAgent(is_audio=is_audio, is_visual=is_visual, is_motion=is_motion)
@@ -120,5 +122,6 @@ class MultiAgentViolanceModel(nn.Module):
             f_flow = self.MotionAgent(flow)
 
         logits = self.DecisionAgent(f_audio, f_rgb, f_flow)
-        return logits.squeeze(1)
+        
+        return logits
     
