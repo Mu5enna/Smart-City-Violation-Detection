@@ -18,10 +18,10 @@ class AudioAgent(nn.Module):
             nn.Linear(256, 128),
         )
 
-        def forward(self, x):
-            x = self.pool(x)
-            x = self.mlp(x)
-            return x
+    def forward(self, x):
+        x = self.pool(x)
+        x = self.mlp(x)
+        return x
 
 class VisualAgent(nn.Module):
     def __init__(self):
@@ -58,36 +58,66 @@ class MotionAgent(nn.Module):
         return x
     
 class DecisionAgent(nn.Module):
-    def __init__(self);
+    def __init__(self, is_audio=True, is_visual=True, is_motion=True):
         super().__init__()
 
+        input_dim = 0
+        if is_audio:
+            input_dim += 128
+        if is_visual:
+            input_dim += 256
+        if is_motion:
+            input_dim += 256
+
         self.classifier = nn.Sequential(
-            nn.Linear(640, 256),
+            nn.Linear(input_dim, input_dim // 2),
             nn.ReLU(),
             nn.Dropout(0.3),
-            nn.Linear(256, 64),
+            nn.Linear(input_dim // 2, input_dim // 4),
             nn.ReLU(),
-            nn.Linear(64, 1)
+            nn.Linear(input_dim // 4, 1)
             )
 
-    def forward(self, f_audio, f_rgb, f_flow):
-        fusion = torch.cat([f_audio, f_rgb, f_flow], dim=1)
+    def forward(self, f_audio = None, f_rgb = None, f_flow = None):
+
+        features = []
+        if f_audio is not None:
+            features.append(f_audio)
+        if f_rgb is not None:
+            features.append(f_rgb)
+        if f_flow is not None:
+            features.append(f_flow)
+        fusion = torch.cat(features, dim=1)
         out = self.classifier(fusion)
         return out
 
 class MultiAgentViolanceModel(nn.Module):
-    def __init__(self):
+    def __init__(self, is_audio=True, is_visual=True, is_motion=True):
+
         super().__init__()
-        self.AudioAgent = AudioAgent()
-        self.VisualAgent = VisualAgent()
-        self.MotionAgent = MotionAgent()
-        self.DecisionAgent = DecisionAgent()
+        
+        if is_audio:
+            self.is_audio = is_audio
+            self.AudioAgent = AudioAgent()
+        if is_visual:
+            self.is_visual = is_visual
+            self.VisualAgent = VisualAgent()
+        if is_motion:   
+            self.is_motion = is_motion
+            self.MotionAgent = MotionAgent()
 
-    def forward(self, audio, rgb, flow):
+        self.DecisionAgent = DecisionAgent(is_audio=is_audio, is_visual=is_visual, is_motion=is_motion)
 
-        f_audio = self.AudioAgent(audio)
-        f_rgb = self.VisualAgent(rgb)
-        f_flow = self.MotionAgent(flow)
+    def forward(self, audio=None, rgb=None, flow=None):
+
+        f_audio, f_rgb, f_flow = None, None, None
+
+        if self.is_audio:
+            f_audio = self.AudioAgent(audio)
+        if self.is_visual:
+            f_rgb = self.VisualAgent(rgb)
+        if self.is_motion:   
+            f_flow = self.MotionAgent(flow)
 
         logits = self.DecisionAgent(f_audio, f_rgb, f_flow)
         return logits.squeeze(1)
