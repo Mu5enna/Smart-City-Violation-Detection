@@ -14,19 +14,24 @@ root_dir = "C:\\Users\\Win10\\Desktop\\DeepLearning\\Project\\Smart-City-Violati
 batch_size = 8
 num_epochs = 40
 learning_rate = 1e-4
+rgb_data = False
+flow_data = True
+audio_data = False
+train_size = 19770  # Set to 3000 for quick testing, set to 19770 for full training
+test_size = 4000
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 model_chk_dir = "checkpoints"
 os.makedirs(model_chk_dir, exist_ok=True)
 
-train_dataset = XDViolenceDataset(root_dir, split="train", is_audio=True, is_visual=False, is_motion=False)
-test_dataset = XDViolenceDataset(root_dir, split="test", is_audio=True, is_visual=False, is_motion=False)
+train_dataset = XDViolenceDataset(root_dir, split="train", data_size=train_size, is_audio=audio_data, is_visual=rgb_data, is_motion=flow_data)
+test_dataset = XDViolenceDataset(root_dir, split="test", data_size=test_size, is_audio=audio_data, is_visual=rgb_data, is_motion=flow_data)
 
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 test_loader = DataLoader(test_dataset,batch_size=batch_size, shuffle=False)
 
-model = MultiAgentViolanceModel(is_audio=True, is_visual=False, is_motion=False).to(device)
+model = MultiAgentViolanceModel(is_audio=audio_data, is_visual=rgb_data, is_motion=flow_data).to(device)
 
 criterion = nn.BCEWithLogitsLoss()
 optimizer = torch.optim.Adam(params=model.parameters(), lr=learning_rate, weight_decay=1e-5)
@@ -99,11 +104,11 @@ if __name__ == "__main__":
     train_model()
 
     #Load best model for testing
-    model = MultiAgentViolanceModel(is_audio=True, is_visual=False, is_motion=False).to(device)
+    model = MultiAgentViolanceModel(is_audio=audio_data, is_visual=rgb_data, is_motion=flow_data).to(device)
     model_name = str(model.is_audio) + str(model.is_visual) + str(model.is_motion) + "best_model.pth"
     model.load_state_dict(torch.load(os.path.join(model_chk_dir, model_name)))
 
-    val_dataset = XDViolenceDataset(root_dir, split="test", is_audio=True, is_visual=False, is_motion=False)
+    val_dataset = XDViolenceDataset(root_dir, split="test", data_size=test_size, is_audio=audio_data, is_visual=rgb_data, is_motion=flow_data)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
 
     labels = [val_dataset._parse_label(vid).item() for vid in val_dataset.video_ids]
